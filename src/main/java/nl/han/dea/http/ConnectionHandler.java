@@ -3,27 +3,21 @@ package nl.han.dea.http;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 
 public class ConnectionHandler {
+    HtmlPageReader reader = new HtmlPageReader();
+    String pagename = "index.html";
 
-    private static final String HTTP_HEADERS = "HTTP/1.1 200 OK\n" +
-            "Date: Mon, 27 Aug 2018 14:08:55 +0200\n" +
+
+    private final String HTTP_HEADERS = "HTTP/1.1 200 OK\n" +
+            "Date: " + OffsetDateTime.now( ZoneOffset.UTC ).format( DateTimeFormatter.RFC_1123_DATE_TIME ) + "\n" +
             "HttpServer: Simple DEA Webserver\n" +
-            "Content-Length: 190\n" +
+            "Content-Length: " + reader.calcPageContentLength(pagename) + "\n" +
             "Content-Type: text/html\n";
 
-    private static final String HTTP_BODY = "<!DOCTYPE html>\n" +
-            "<html lang=\"en\">\n" +
-            "<head>\n" +
-            "<meta charset=\"UTF-8\">\n" +
-            "<title>Simple Http Server</title>\n" +
-            "</head>\n" +
-            "<body>\n" +
-            "<h1>Hi DEA folks!</h1>\n" +
-            "<p>This is a simple line in html.</p>\n" +
-            "</body>\n" +
-            "</html>\n" +
-            "\n";
     private Socket socket;
 
     public ConnectionHandler(Socket socket) {
@@ -47,7 +41,11 @@ public class ConnectionHandler {
     }
 
     private void parseRequest(BufferedReader inputStreamReader) throws IOException {
-        var request = inputStreamReader.readLine();
+        String request = inputStreamReader.readLine();
+
+        //TODO crash door favicon.ico (deze moet dan worden toegevoegd)
+        String temp = request.substring(request.indexOf("/") + 1);
+        pagename = temp.substring(0, temp.indexOf(" "));
 
         while (request != null && !request.isEmpty()) {
             System.out.println(request);
@@ -59,7 +57,11 @@ public class ConnectionHandler {
         try {
             outputStreamWriter.write(HTTP_HEADERS);
             outputStreamWriter.newLine();
-            outputStreamWriter.write(HTTP_BODY);
+
+            outputStreamWriter.write(
+                    reader.readFile(pagename)
+            );
+
             outputStreamWriter.newLine();
             outputStreamWriter.flush();
         } catch (IOException e) {
